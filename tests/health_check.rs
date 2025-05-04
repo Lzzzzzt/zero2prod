@@ -1,10 +1,14 @@
-use std::vec;
+use std::{sync::LazyLock, vec};
 
 use reqwest::Client;
+use secrecy::ExposeSecret;
 use sqlx::{Connection, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
-use zero2prod::config::{DatabaseSettings, get_config};
+use zero2prod::{
+    config::{DatabaseSettings, get_config},
+    telemetry::init_subscriber,
+};
 
 pub struct TestApp {
     address: String,
@@ -78,7 +82,19 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
     }
 }
 
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let subscriber_name = "test";
+    let filter_level = "debug";
+
+    match std::env::var("TEST_LOG") {
+        Ok(_) => init_subscriber(subscriber_name, filter_level, std::io::stdout),
+        Err(_) => init_subscriber(subscriber_name, filter_level, std::io::sink),
+    }
+});
+
 async fn spawn_app() -> TestApp {
+    LazyLock::force(&TRACING);
+
     let listener =
         TcpListener::bind("127.0.0.1:0").expect("Failed to bind address with random port.");
     let port = listener.local_addr().unwrap().port();
@@ -99,16 +115,17 @@ async fn spawn_app() -> TestApp {
 }
 
 pub async fn setting_up_database(config: &DatabaseSettings) -> PgPool {
-    let mut connection = PgConnection::connect(&config.get_connection_string_without_db())
-        .await
-        .expect("Failed to connect to database.");
+    let mut connection =
+        PgConnection::connect(config.connection_string_without_db().expose_secret())
+            .await
+            .expect("Failed to connect to database.");
 
     sqlx::raw_sql(&format!(r#"CREATE DATABASE "{}";"#, config.name))
         .execute(&mut connection)
         .await
         .expect("Failed to create database.");
 
-    let connection_pool = PgPool::connect(&config.get_connection_string())
+    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
         .await
         .expect("Failed to connect to database.");
 

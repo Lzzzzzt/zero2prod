@@ -15,13 +15,7 @@ actix-web = "4.10.2"
 chrono = { version = "0.4.41", default-features = false, features = ["clock"] }
 config = "0.15.11"
 reqwest = "0.12.15"
-sea-query = "0.32.4"
-sea-query-binder = { version = "0.7.0", features = [
-    "runtime-tokio-rustls",
-    "sqlx-postgres",
-    "with-chrono",
-    "with-uuid",
-] }
+secrecy = { version = "0.10.3", features = ["serde"] }
 serde = { version = "1.0.219", features = ["derive"] }
 sqlx = { version = "0.8.5", features = [
     "runtime-tokio-rustls",
@@ -32,4 +26,12 @@ sqlx = { version = "0.8.5", features = [
     "migrate",
 ] }
 tokio = { version = "1.44.2", features = ["full"] }
+tracing = { version = "0.1.41", features = ["log"] }
+tracing-actix-web = "0.7.18"
+tracing-bunyan-formatter = "0.3.10"
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.19", features = [
+    "registry",
+    "env-filter",
+] }
 uuid = { version = "1.16.0", features = ["v4"] }
