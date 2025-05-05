@@ -1,0 +1,18 @@
+name: zero2prod
+region: syd1
+services:
+  - name: zero2prod
+    dockerfile_path: ./Dockerfile
+    source_dir: .
+    github:
+      branch: master
+      deploy_on_push: true
+      repo: Lzzzzzt/zero2prod
+    health_check:
+      http_path: /health_check
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    routes:
+      - path: /
+

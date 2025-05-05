@@ -9,9 +9,10 @@ async fn main() -> Result<(), std::io::Error> {
 
     let config = get_config().expect("Failed to parse the configuration.");
 
-    let listener = TcpListener::bind(("0.0.0.0", config.port))?;
-    let connection = PgPool::connect(config.database_settings.connection_string().expose_secret())
-        .await
-        .expect("Failed to connect database.");
+    let listener = TcpListener::bind((config.app_settings.host, config.app_settings.port))?;
+    let connection =
+        PgPool::connect_lazy(config.database_settings.connection_string().expose_secret())
+            .expect("Failed to connect database.");
+
     run(listener, connection)?.await
 }

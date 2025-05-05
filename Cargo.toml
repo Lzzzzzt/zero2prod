@@ -3,6 +3,12 @@ name = "zero2prod"
 version = "0.1.0"
 edition = "2024"
 
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"
+
 [lib]
 path = "src/lib.rs"
 
