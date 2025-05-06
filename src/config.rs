@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
+use serde_aux::prelude::deserialize_number_from_string;
+use sqlx::postgres::{PgConnectOptions, PgSslMode};
 
 #[derive(Deserialize)]
 pub struct Settings {
@@ -13,6 +15,7 @@ pub struct Settings {
 
 #[derive(Deserialize)]
 pub struct AppSettings {
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
 }
@@ -21,37 +24,25 @@ pub struct AppSettings {
 pub struct DatabaseSettings {
     pub username: String,
     pub password: SecretString,
+    #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
     pub name: String,
+    pub ssl_enabled: bool,
 }
 
 impl DatabaseSettings {
-    pub fn connection_string(&self) -> SecretString {
-        SecretString::new(
-            format!(
-                "postgres://{}:{}@{}:{}/{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port,
-                self.name
-            )
-            .into(),
-        )
+    pub fn with_database(&self) -> PgConnectOptions {
+        self.without_database().database(&self.name)
     }
 
-    pub fn connection_string_without_db(&self) -> SecretString {
-        SecretString::new(
-            format!(
-                "postgres://{}:{}@{}:{}",
-                self.username,
-                self.password.expose_secret(),
-                self.host,
-                self.port
-            )
-            .into(),
-        )
+    pub fn without_database(&self) -> PgConnectOptions {
+        PgConnectOptions::new()
+            .host(&self.host)
+            .username(&self.username)
+            .password(self.password.expose_secret())
+            .port(self.port)
+            .ssl_mode(if self.ssl_enabled { PgSslMode::Require } else { PgSslMode::Prefer })
     }
 }
 
@@ -68,6 +59,11 @@ pub fn get_config() -> Result<Settings, config::ConfigError> {
     let settings = config::Config::builder()
         .add_source(config::File::from(config_directory.join("base.yaml")))
         .add_source(config::File::from(config_directory.join(env_config)))
+        .add_source(
+            config::Environment::with_prefix("APP")
+                .prefix_separator("_")
+                .separator("__"),
+        )
         .build()?;
 
     settings.try_deserialize()

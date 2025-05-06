@@ -1,4 +1,3 @@
-use secrecy::ExposeSecret;
 use sqlx::PgPool;
 use std::net::TcpListener;
 use zero2prod::{config::get_config, startup::run, telemetry::init_subscriber};
@@ -10,9 +9,7 @@ async fn main() -> Result<(), std::io::Error> {
     let config = get_config().expect("Failed to parse the configuration.");
 
     let listener = TcpListener::bind((config.app_settings.host, config.app_settings.port))?;
-    let connection =
-        PgPool::connect_lazy(config.database_settings.connection_string().expose_secret())
-            .expect("Failed to connect database.");
+    let connection = PgPool::connect_lazy_with(config.database_settings.with_database());
 
     run(listener, connection)?.await
 }

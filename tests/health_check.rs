@@ -1,14 +1,11 @@
 use std::{sync::LazyLock, vec};
 
 use reqwest::Client;
-use secrecy::ExposeSecret;
 use sqlx::{Connection, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
-use zero2prod::{
-    config::{DatabaseSettings, get_config},
-    telemetry::init_subscriber,
-};
+use zero2prod::config::{DatabaseSettings, get_config};
+use zero2prod::telemetry::init_subscriber;
 
 pub struct TestApp {
     address: String,
@@ -95,16 +92,14 @@ static TRACING: LazyLock<()> = LazyLock::new(|| {
 async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
 
-    let listener =
-        TcpListener::bind("127.0.0.1:0").expect("Failed to bind address with random port.");
+    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind address with random port.");
     let port = listener.local_addr().unwrap().port();
 
     let mut config = get_config().expect("Failed to parse configuration.");
     config.database_settings.name = Uuid::new_v4().to_string();
     let connection = setting_up_database(&config.database_settings).await;
 
-    let server =
-        zero2prod::startup::run(listener, connection.clone()).expect("Failed to start server");
+    let server = zero2prod::startup::run(listener, connection.clone()).expect("Failed to start server");
 
     tokio::spawn(server);
 
@@ -115,17 +110,16 @@ async fn spawn_app() -> TestApp {
 }
 
 pub async fn setting_up_database(config: &DatabaseSettings) -> PgPool {
-    let mut connection =
-        PgConnection::connect(config.connection_string_without_db().expose_secret())
-            .await
-            .expect("Failed to connect to database.");
+    let mut connection = PgConnection::connect_with(&config.without_database())
+        .await
+        .expect("Failed to connect to database.");
 
     sqlx::raw_sql(&format!(r#"CREATE DATABASE "{}";"#, config.name))
         .execute(&mut connection)
         .await
         .expect("Failed to create database.");
 
-    let connection_pool = PgPool::connect(config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.with_database())
         .await
         .expect("Failed to connect to database.");
 
