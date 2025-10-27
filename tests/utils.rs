@@ -1,6 +1,5 @@
 use std::sync::LazyLock;
 
-use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio::net::TcpListener;
 use zero2prod::{
@@ -53,7 +52,7 @@ pub async fn setup_database(config: &DBConfig) -> PgPool {
         ..config.clone()
     };
 
-    let mut conn = PgConnection::connect(test_settings.connection_url().expose_secret())
+    let mut conn = PgConnection::connect_with(&test_settings.connection_options())
         .await
         .expect("Failed to connect to Postgres.");
 
@@ -61,7 +60,7 @@ pub async fn setup_database(config: &DBConfig) -> PgPool {
         .await
         .expect("Failed to create database.");
 
-    let conn_pool = PgPool::connect(config.connection_url().expose_secret())
+    let conn_pool = PgPool::connect_with(config.connection_options())
         .await
         .expect("Failed to connect to Postgres.");
 
