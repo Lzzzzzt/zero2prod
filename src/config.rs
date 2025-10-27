@@ -55,13 +55,13 @@ pub enum Env {
 }
 
 impl TryFrom<String> for Env {
-    type Error = ();
+    type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match value.to_lowercase().as_str() {
             s if s.starts_with("dev") => Ok(Env::Dev),
-            s if s.starts_with("pord") => Ok(Env::Prod),
-            _ => Err(()),
+            s if s.starts_with("prod") => Ok(Env::Prod),
+            s => Err(format!("{s} is not a valid `APP_ENV`.")),
         }
     }
 }
@@ -82,7 +82,7 @@ pub async fn get_config() -> Result<Config, config::ConfigError> {
     let env: Env = std::env::var("APP_ENV")
         .unwrap_or_else(|_| "dev".into())
         .try_into()
-        .expect("Failed to parse `APP_ENV`.");
+        .expect("Failed to parse `APP_ENV`");
 
     let env_config_file = format!("{env}.toml");
 
