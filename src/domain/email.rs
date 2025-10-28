@@ -1,9 +1,9 @@
 use validator::ValidateEmail;
 
 #[derive(Debug)]
-pub struct SubscriberEmail(String);
+pub struct Email(String);
 
-impl TryFrom<String> for SubscriberEmail {
+impl TryFrom<String> for Email {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -15,7 +15,7 @@ impl TryFrom<String> for SubscriberEmail {
     }
 }
 
-impl AsRef<str> for SubscriberEmail {
+impl AsRef<str> for Email {
     fn as_ref(&self) -> &str {
         &self.0
     }
@@ -23,7 +23,7 @@ impl AsRef<str> for SubscriberEmail {
 
 #[cfg(test)]
 mod tests {
-    use super::SubscriberEmail;
+    use super::Email;
     use claims::assert_err;
     use fake::Fake;
     use rand::{SeedableRng, rngs::StdRng};
@@ -41,24 +41,24 @@ mod tests {
 
     #[quickcheck_macros::quickcheck]
     fn valid_emails_are_parsed_successfully(valid_email: ValidEmailFixture) -> bool {
-        SubscriberEmail::try_from(valid_email.0).is_ok()
+        Email::try_from(valid_email.0).is_ok()
     }
 
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(SubscriberEmail::try_from(email));
+        assert_err!(Email::try_from(email));
     }
 
     #[test]
     fn email_missing_at_symbol_is_rejected() {
         let email = "mainlzzzt.cc".to_string();
-        assert_err!(SubscriberEmail::try_from(email));
+        assert_err!(Email::try_from(email));
     }
 
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@lzzzt.cc".to_string();
-        assert_err!(SubscriberEmail::try_from(email));
+        assert_err!(Email::try_from(email));
     }
 }

@@ -4,7 +4,7 @@ use super::*;
 
 pub struct Subscriber {
     pub name: SubscriberName,
-    pub email: SubscriberEmail,
+    pub email: Email,
 }
 
 impl TryFrom<FormData> for Subscriber {
