@@ -1,9 +1,7 @@
 mod utils;
 
-use percent_encoding::NON_ALPHANUMERIC;
-use percent_encoding::utf8_percent_encode;
-
 use crate::utils::create_app;
+use crate::utils::percent_encode;
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
@@ -15,8 +13,8 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     let email = "main@lzzzt.cc";
     let body = format!(
         "name={}&email={}",
-        utf8_percent_encode(name, NON_ALPHANUMERIC),
-        utf8_percent_encode(email, NON_ALPHANUMERIC)
+        percent_encode(name),
+        percent_encode(email)
     );
 
     let response = client
@@ -48,6 +46,38 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
         ("email=main%40lzzzt.cc", "missing the name"),
         ("", "missing both name and email"),
     ];
+    let address = app.address;
+
+    let url = format!("{address}/subscriptions");
+    for (invalid_body, error_message) in test_cases {
+        let response = client
+            .post(&url)
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(invalid_body)
+            .send()
+            .await
+            .expect("Failed to send request.");
+
+        assert_eq!(
+            422,
+            response.status().as_u16(),
+            "The API did not fail with 422 Unprocessable Entity when the payload was {}.",
+            error_message
+        )
+    }
+}
+
+#[tokio::test]
+async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
+    let app = create_app().await;
+    let client = reqwest::Client::new();
+
+    let test_cases = vec![
+        ("name=&email=main%40lzzzt.cc", "empty name"),
+        ("name=lzzzt&email=", "empty email"),
+        ("name=lzzzt&email=12345", "invalid email"),
+    ];
+
     let address = app.address;
 
     let url = format!("{address}/subscriptions");

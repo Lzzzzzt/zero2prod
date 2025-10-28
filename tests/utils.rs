@@ -1,5 +1,6 @@
 use std::sync::LazyLock;
 
+use percent_encoding::{NON_ALPHANUMERIC, PercentEncode, utf8_percent_encode};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use tokio::net::TcpListener;
 use zero2prod::{
@@ -70,4 +71,9 @@ pub async fn setup_database(config: &DBConfig) -> PgPool {
         .expect("Failed to migrate database.");
 
     conn_pool
+}
+
+#[allow(unused)]
+pub fn percent_encode<'a>(input: &'a str) -> PercentEncode<'a> {
+    utf8_percent_encode(input, NON_ALPHANUMERIC)
 }
