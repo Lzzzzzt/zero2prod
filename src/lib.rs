@@ -1,8 +1,9 @@
-mod startup;
+mod app;
 
 pub mod config;
 pub mod domain;
+pub mod email_client;
 pub mod routes;
 pub mod telemetry;
 
-pub use startup::run;
+pub use app::App;

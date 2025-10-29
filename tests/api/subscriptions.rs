@@ -1,14 +1,9 @@
-mod utils;
-
-use crate::utils::create_app;
-use crate::utils::percent_encode;
+use crate::{TestApp, percent_encode};
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let app = create_app().await;
-    let client = reqwest::Client::new();
+    let app = TestApp::new().await;
 
-    let address = app.address;
     let name = "lzzzt";
     let email = "main@lzzzt.cc";
     let body = format!(
@@ -17,13 +12,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         percent_encode(email)
     );
 
-    let response = client
-        .post(format!("{address}/subscriptions"))
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .body(body)
-        .send()
-        .await
-        .expect("Failed to send request.");
+    let response = app.post_subscriptions(body).await;
 
     assert_eq!(200, response.status().as_u16());
 
@@ -37,26 +26,17 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 }
 
 #[tokio::test]
-async fn subscribe_returns_a_400_when_data_is_missing() {
-    let app = create_app().await;
-    let client = reqwest::Client::new();
+async fn subscribe_returns_a_422_when_data_is_missing() {
+    let app = TestApp::new().await;
 
     let test_cases = vec![
         ("name=lzzzt", "missing the email"),
         ("email=main%40lzzzt.cc", "missing the name"),
         ("", "missing both name and email"),
     ];
-    let address = app.address;
 
-    let url = format!("{address}/subscriptions");
     for (invalid_body, error_message) in test_cases {
-        let response = client
-            .post(&url)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(invalid_body)
-            .send()
-            .await
-            .expect("Failed to send request.");
+        let response = app.post_subscriptions(invalid_body.to_string()).await;
 
         assert_eq!(
             422,
@@ -68,9 +48,8 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
 }
 
 #[tokio::test]
-async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
-    let app = create_app().await;
-    let client = reqwest::Client::new();
+async fn subscribe_returns_a_422_when_fields_are_present_but_empty() {
+    let app = TestApp::new().await;
 
     let test_cases = vec![
         ("name=&email=main%40lzzzt.cc", "empty name"),
@@ -78,17 +57,8 @@ async fn subscribe_returns_a_200_when_fields_are_present_but_empty() {
         ("name=lzzzt&email=12345", "invalid email"),
     ];
 
-    let address = app.address;
-
-    let url = format!("{address}/subscriptions");
     for (invalid_body, error_message) in test_cases {
-        let response = client
-            .post(&url)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(invalid_body)
-            .send()
-            .await
-            .expect("Failed to send request.");
+        let response = app.post_subscriptions(invalid_body.to_string()).await;
 
         assert_eq!(
             422,

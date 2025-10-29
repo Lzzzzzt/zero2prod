@@ -1,14 +1,49 @@
+use serde::{
+    Deserialize, Serialize,
+    de::{self, Visitor},
+};
 use validator::ValidateEmail;
 
-#[derive(Debug)]
-pub struct Email(String);
+#[derive(Debug, Serialize, Clone)]
+pub struct Email {
+    #[serde(rename = "email")]
+    inner: String,
+}
+
+impl<'de> Deserialize<'de> for Email {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct EmailVisitor;
+
+        impl<'de> Visitor<'de> for EmailVisitor {
+            type Value = String;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an valid email string")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(v.to_string())
+            }
+        }
+
+        let value = deserializer.deserialize_string(EmailVisitor)?;
+
+        Email::try_from(value).map_err(de::Error::custom)
+    }
+}
 
 impl TryFrom<String> for Email {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.validate_email() {
-            Ok(Self(value))
+            Ok(Self { inner: value })
         } else {
             Err(format!("Email: {value} is not valid."))
         }
@@ -17,7 +52,7 @@ impl TryFrom<String> for Email {
 
 impl AsRef<str> for Email {
     fn as_ref(&self) -> &str {
-        &self.0
+        &self.inner
     }
 }
 

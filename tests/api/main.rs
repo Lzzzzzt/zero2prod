@@ -1,14 +1,17 @@
+mod health_check;
+mod subscriptions;
+
 use std::sync::LazyLock;
 
 use percent_encoding::{NON_ALPHANUMERIC, PercentEncode, utf8_percent_encode};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use tokio::net::TcpListener;
 use zero2prod::{
+    App,
     config::{DBConfig, get_config},
     telemetry::{create_subscriber, setup_subscriber},
 };
 
-static SUBSCRIBER: LazyLock<()> = LazyLock::new(|| {
+static TRACING_SUBSCRIBER: LazyLock<()> = LazyLock::new(|| {
     match std::env::var("TEST_LOG") {
         Ok(_) => setup_subscriber(create_subscriber("zero2prod-test", "info", std::io::stdout)),
         Err(_) => setup_subscriber(create_subscriber("zero2prod-test", "info", std::io::sink)),
@@ -17,35 +20,46 @@ static SUBSCRIBER: LazyLock<()> = LazyLock::new(|| {
 
 pub struct TestApp {
     pub address: String,
-    #[allow(unused)]
     pub conn_pool: PgPool,
 }
 
-pub async fn create_app() -> TestApp {
-    LazyLock::force(&SUBSCRIBER);
+impl TestApp {
+    pub async fn new() -> Self {
+        LazyLock::force(&TRACING_SUBSCRIBER);
 
-    // Bind the address and listen
-    let listener = TcpListener::bind(("127.0.0.1", 0))
-        .await
-        .expect("Failed to bind address.");
-    // Generate the server address
-    let address = format!("http://127.0.0.1:{}", listener.local_addr().unwrap().port());
+        let config = {
+            let mut c = get_config().await.expect("Failed to read config.");
+            c.db_config.db_name = uuid::Uuid::new_v4().to_string();
+            c.app_config.port = 0;
+            c
+        };
+        let conn_pool = setup_database(&config.db_config).await;
 
-    let mut config = get_config().await.expect("Failed to read config.");
-    config.db_config.db_name = uuid::Uuid::new_v4().to_string();
-    let conn_pool = setup_database(&config.db_config).await;
+        let app = App::build(config).await.expect("Failed to build app.");
 
-    let app = TestApp {
-        address,
-        conn_pool: conn_pool.clone(),
-    };
-    // Run the server at background
-    tokio::spawn(async { zero2prod::run(listener, conn_pool).await });
+        let test_app = TestApp {
+            address: format!("http://127.0.0.1:{}", app.port()),
+            conn_pool,
+        };
 
-    app
+        // Run the server at background
+        tokio::spawn(async { app.run().await });
+
+        test_app
+    }
+
+    pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
+        reqwest::Client::new()
+            .post(format!("{}/subscriptions", &self.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to send request.")
+    }
 }
 
-pub async fn setup_database(config: &DBConfig) -> PgPool {
+async fn setup_database(config: &DBConfig) -> PgPool {
     let test_settings = DBConfig {
         db_name: "postgres".into(),
         username: "postgres".into(),
@@ -73,7 +87,6 @@ pub async fn setup_database(config: &DBConfig) -> PgPool {
     conn_pool
 }
 
-#[allow(unused)]
 pub fn percent_encode<'a>(input: &'a str) -> PercentEncode<'a> {
     utf8_percent_encode(input, NON_ALPHANUMERIC)
 }

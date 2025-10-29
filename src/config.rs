@@ -1,9 +1,12 @@
 use std::fmt::Display;
 
+use reqwest::Url;
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::postgres::{PgConnectOptions, PgSslMode};
+
+use crate::domain::Email;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -11,6 +14,8 @@ pub struct Config {
     pub app_config: AppConfig,
     #[serde(rename = "database")]
     pub db_config: DBConfig,
+    #[serde(rename = "email_client")]
+    pub email_client_config: EmailClientConfig,
 }
 
 #[derive(Deserialize)]
@@ -47,6 +52,15 @@ impl DBConfig {
             .database(&self.db_name)
             .ssl_mode(ssl)
     }
+}
+
+#[derive(Deserialize)]
+pub struct EmailClientConfig {
+    #[serde(rename = "sender_email")]
+    pub sender: Email,
+    pub base_url: Url,
+    pub token: SecretString,
+    pub timeout_ms: u32,
 }
 
 pub enum Env {

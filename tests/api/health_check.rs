@@ -1,11 +1,9 @@
-mod utils;
-
-use crate::utils::create_app;
+use crate::TestApp;
 
 #[tokio::test]
 async fn health_check_works() {
     // Create the app
-    let address = create_app().await.address;
+    let address = TestApp::new().await.address;
     // Init the test client
     let client = reqwest::Client::new();
     // Send the test request
